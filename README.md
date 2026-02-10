@@ -82,7 +82,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: lymo-inc/own-your-review@v0.1
+      - uses: lymo-inc/own-your-review@v0.2
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
