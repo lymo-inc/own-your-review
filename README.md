@@ -12,49 +12,48 @@ AI code generation has created a new failure mode: **vibe merging**. CI passes, 
 
 Existing AI PR tools make this *worse*. They review code *for* you, further removing the human from the loop.
 
-## How It Works
 
-```
-PR opened → Analyze diff → Generate comprehension questions → Post as PR comment
-                                                                       │
-PR approved → Check if questions were engaged with → Learning note if not
-```
-
-When a PR is opened, own-your-review posts questions like:
-
-> ### 🔍 Own Your Review
->
-> Before approving, make sure you can answer these:
->
-> **Intent**
->
-> - [ ] What problem does the new `RetryQueue` class solve that the existing error handling didn't address?
->
-> **Mechanism**
->
-> - [ ] Trace what happens when a job fails for the 3rd time with `maxRetries: 3` — what state transitions occur?
->
-> **Edge Cases**
->
-> - [ ] What happens if the Redis connection drops mid-retry? Is there a risk of duplicate execution?
-
-If the reviewer approves without checking any boxes, a short learning note is posted summarizing the key concepts they should understand.
-
-**It never blocks merges.** It creates awareness and builds comprehension habits.
 
 ## Quick Start
 
-### Option A: CLI (fastest)
+### Option A: Claude Code Plugin (interactive quiz)
+
+Install the plugin in Claude Code:
+
+```text
+/plugin marketplace add lymo-inc/own-your-review
+/plugin install own-your-review@own-your-review
+```
+
+Then run on any branch with changes:
+
+```text
+/own-your-review:quiz-me
+```
+
+This starts an interactive Socratic quiz — questions one at a time, with feedback on your answers and a comprehension score at the end. You can also target specific files or commits:
+
+```text
+/own-your-review:quiz-me src/auth.ts
+/own-your-review:quiz-me abc123..def456
+/own-your-review:quiz-me --staged
+```
+
+### Option B: GitHub Action (automated on PRs)
+
+Set up with the CLI:
 
 ```bash
 npx @lymo-inc/own-your-review init
 ```
 
+Or with Bun:
+
 ```bash
 bunx @lymo-inc/own-your-review init
 ```
 
-### Option B: Manual setup
+### Option C: Manual setup
 
 1. Create `.github/workflows/own-your-review.yml`:
 
@@ -87,37 +86,6 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
-
-1. Add your API key as a repository secret:
-
-```bash
-gh secret set ANTHROPIC_API_KEY
-```
-
-1. Open a PR. That's it.
-
-### Claude Code Plugin
-
-For interactive comprehension quizzes locally in Claude Code:
-
-1. Install the plugin (see Claude Code plugin documentation for your setup)
-2. Run `/own-your-review:quiz-me` on any branch with changes
-
-The plugin quizzes you one question at a time, evaluates your answers against the actual diff, and gives a comprehension score. It supports:
-
-- **No args** — quiz on current branch diff
-- **File path** — quiz on changes to a specific file
-- **Commit range** — quiz on a specific range of commits
-- **`--staged`** — quiz on staged changes only
-
-### Auth Options
-
-| Method | Secret name | Best for |
-|--------|------------|----------|
-| **API key** (recommended) | `ANTHROPIC_API_KEY` | Teams, reliable billing |
-| **OAuth token** | `CLAUDE_CODE_OAUTH_TOKEN` | Claude Max subscribers (tokens expire ~24h) |
-| **AWS Bedrock** | Set `use_bedrock: "true"` | AWS-native teams |
-| **GCP Vertex** | Set `use_vertex: "true"` | GCP-native teams |
 
 ## Configuration
 
