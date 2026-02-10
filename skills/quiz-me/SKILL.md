@@ -16,6 +16,7 @@ Read `.github/own-your-review-config.yml` if it exists. Extract:
 - `questions.max` (default: `5`)
 - `questions.min` (default: `2`)
 - `questions.reviewer_level` (default: `mid`)
+- `questions.mode` (default: `mixed`) — one of `multiple-choice`, `open-ended`, or `mixed`
 - `ignore.paths` (default: none)
 
 If the config file exists but cannot be parsed, log a warning and proceed with defaults.
@@ -85,6 +86,16 @@ If the diff is empty, tell the user and stop.
 
 Analyze the diff and generate questions using the taxonomy and scaling rules below. **Keep all questions and their expected answers in your internal working memory. Do NOT output them yet.**
 
+For each question, determine its delivery mode:
+
+| Config `mode` | Delivery |
+|---------------|----------|
+| `multiple-choice` | All questions use AskUserQuestion |
+| `open-ended` | All questions use plain text |
+| `mixed` | **Mechanism, Edge Cases, Blast Radius, Security** → AskUserQuestion; **Intent, Trade-offs** → plain text |
+
+For every question that will use AskUserQuestion, also generate **3 answer options** (1 correct + 2 distractors). Follow the Distractor Quality Rules below. Keep the options in working memory alongside the questions.
+
 Count the diff stats (files changed, lines added/removed) for the announcement.
 
 ### 1.5 Announce the quiz
@@ -95,7 +106,7 @@ Output:
 ## Own Your Review — Quiz Mode
 
 Reviewing: [N] files changed, [M] lines across `[primary directory or file]`
-Questions: [Q] (reviewer level: [level])
+Questions: [Q] (reviewer level: [level], mode: [mode])
 
 Let's start with question 1.
 ```
@@ -108,7 +119,20 @@ For each question, run this cycle:
 
 ### 2.1 Ask
 
-Present one question:
+How you present the question depends on its delivery mode (determined in 1.4):
+
+#### Multiple-choice questions
+
+Use the **AskUserQuestion** tool:
+
+- **question:** `"Question [N]/[total] — [Category]\n\n[Question text referencing specific code from the diff]"`
+- **header:** `"Q[N]"`
+- **options:** 3 options (the correct answer and 2 distractors, shuffled into a random order so the correct answer is not always first). `multiSelect: false`.
+- The built-in "Other" option allows the user to type a detailed free-text answer instead of picking an option.
+
+#### Open-ended questions
+
+Present as markdown text and wait for the user to respond:
 
 ```
 ### Question [N] of [total] — [Category]
@@ -116,11 +140,19 @@ Present one question:
 [Question text referencing specific code from the diff — function names, file paths, line ranges]
 ```
 
-Do NOT show hints initially. Wait for the user to respond.
+Do NOT show hints initially for either mode. Wait for the user to respond.
 
 ### 2.2 Evaluate
 
-When the user responds, evaluate their answer against the diff:
+#### For multiple-choice questions
+
+- **User selected the correct option** → **Correct**.
+- **User selected a distractor** → **Incorrect** (follow the feedback flow in 2.3).
+- **User selected "Other" and typed text** → evaluate as open-ended (below).
+
+#### For open-ended questions (or "Other" text on MC)
+
+Evaluate their answer against the diff:
 
 - **Correct** — demonstrates genuine understanding of the reasoning, mechanism, or design decision. Does not need to be word-perfect — the spirit matters.
 - **Partial** — right direction but missing a key detail that matters for comprehension.
@@ -174,7 +206,7 @@ After all questions (or if the user ends early), present:
 ## Own Your Review — Results
 
 Reviewing: [target description] ([N] files, [M] lines)
-Level: [reviewer_level]
+Level: [reviewer_level] | Mode: [mode]
 
 ### Score: [correct]/[total] ([percentage]%)
 
@@ -229,6 +261,17 @@ Your questions MUST NOT be:
 - Binary yes/no ("Is the error handling correct?")
 - Too broad ("Explain the architecture")
 - Trick questions or gotchas
+
+## Distractor Quality Rules
+
+When generating options for multiple-choice questions:
+
+1. **Diff-specific** — distractors MUST reference real code from the diff (actual function names, variables, file paths). Never use generic or made-up identifiers.
+2. **Plausible to skimmers** — each distractor should be believable to someone who glanced at the diff but didn't trace the logic. Test common misconceptions about the change.
+3. **Clearly wrong to readers** — someone who carefully read and understood the code should be able to rule out distractors without guessing.
+4. **Not absurd** — distractors must not be obviously unrelated or joke answers.
+5. **Similar length** — all options (correct and distractors) should be roughly the same length to avoid "longest answer is correct" bias.
+6. **Shuffled** — randomize the position of the correct answer across questions. Do not always put it first or last.
 
 ## Scaling Rules
 

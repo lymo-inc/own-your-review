@@ -10,6 +10,7 @@ questions:
   max: 5                    # Maximum questions per PR (1-7)
   min: 2                    # Minimum questions, even for small PRs
   reviewer_level: mid       # junior | mid | senior — adjusts difficulty and hints
+  mode: mixed               # multiple-choice | open-ended | mixed
 
 # What to ignore
 ignore:
