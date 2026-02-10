@@ -1,0 +1,10 @@
+{
+  "name": "own-your-review",
+  "description": "Stop vibe-merging. Verify reviewer comprehension with interactive quizzes.",
+  "version": "0.1.0",
+  "author": { "name": "Lymo Inc" },
+  "homepage": "https://github.com/lymo-inc/own-your-review",
+  "repository": "https://github.com/lymo-inc/own-your-review",
+  "license": "MIT",
+  "keywords": ["code-review", "comprehension", "quiz"]
+}
