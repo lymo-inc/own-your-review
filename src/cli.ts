@@ -127,8 +127,12 @@ async function init(options: {
 	console.log("  3. Open a PR — the bot will post comprehension questions.");
 	console.log();
 	console.log(
-		"  4. Use in Claude Code: /own-your-review (local comprehension questions)",
+		"  4. For interactive quizzes in Claude Code, install the plugin:",
 	);
+	console.log(
+		"     https://github.com/lymo-inc/own-your-review#claude-code-plugin",
+	);
+	console.log("     Then run: /own-your-review:quiz-me");
 	console.log();
 	console.log("  Docs: https://github.com/lymo-inc/own-your-review");
 	console.log();
