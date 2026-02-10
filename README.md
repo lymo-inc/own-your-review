@@ -48,7 +48,9 @@ If the reviewer approves without checking any boxes, a short learning note is po
 
 ```bash
 npx @lymo-inc/own-your-review init
-# or
+```
+
+```bash
 bunx @lymo-inc/own-your-review init
 ```
 
@@ -81,7 +83,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: lymo-inc/own-your-review@v1
+      - uses: lymo-inc/own-your-review@v0.1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 ```
