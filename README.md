@@ -1,6 +1,6 @@
 # own-your-review
 
-> Stop vibe-merging. Start understanding.
+> Stop merging things you don't understand.
 
 Most AI code review tools review code *for* you. This one makes sure *you* reviewed the code.
 
@@ -95,6 +95,20 @@ gh secret set ANTHROPIC_API_KEY
 ```
 
 1. Open a PR. That's it.
+
+### Claude Code Plugin
+
+For interactive comprehension quizzes locally in Claude Code:
+
+1. Install the plugin (see Claude Code plugin documentation for your setup)
+2. Run `/own-your-review:quiz-me` on any branch with changes
+
+The plugin quizzes you one question at a time, evaluates your answers against the actual diff, and gives a comprehension score. It supports:
+
+- **No args** — quiz on current branch diff
+- **File path** — quiz on changes to a specific file
+- **Commit range** — quiz on a specific range of commits
+- **`--staged`** — quiz on staged changes only
 
 ### Auth Options
 
