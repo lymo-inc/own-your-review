@@ -1,0 +1,34 @@
+{
+  "name": "@lymo-inc/own-your-review",
+  "version": "0.1.0",
+  "description": "Stop merging things you don't understand.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lymo-inc/own-your-review"
+  },
+  "homepage": "https://github.com/lymo-inc/own-your-review",
+  "keywords": [
+    "code-review",
+    "github-actions",
+    "ai",
+    "comprehension",
+    "pull-request"
+  ],
+  "files": [
+    "src/",
+    "templates/"
+  ],
+  "bin": {
+    "oyr": "src/cli.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "commander": "^13",
+    "execa": "^9",
+    "ora": "^8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

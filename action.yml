@@ -1,0 +1,237 @@
+name: "Own Your Review"
+description: "Generates comprehension questions on PRs to verify reviewers actually understood the code before approving. Stop vibe-merging. Start understanding."
+branding:
+  icon: "check-circle"
+  color: "yellow"
+
+inputs:
+  # Auth (pick one — passed through to claude-code-action)
+  anthropic_api_key:
+    description: "Anthropic API key for direct API access"
+    required: false
+  claude_code_oauth_token:
+    description: "Claude Code OAuth token (alternative to API key)"
+    required: false
+  use_bedrock:
+    description: "Use Amazon Bedrock instead of direct Anthropic API"
+    required: false
+    default: "false"
+  use_vertex:
+    description: "Use Google Vertex AI instead of direct Anthropic API"
+    required: false
+    default: "false"
+
+  # Question config
+  max_questions:
+    description: "Maximum comprehension questions per PR (1-7)"
+    required: false
+    default: "5"
+  min_questions:
+    description: "Minimum questions, even for small PRs"
+    required: false
+    default: "2"
+  reviewer_level:
+    description: "Reviewer experience level: junior, mid, or senior"
+    required: false
+    default: "mid"
+
+  # Behavior
+  learning_note:
+    description: "Post a learning note when PR is approved without engaging with questions"
+    required: false
+    default: "true"
+  config_path:
+    description: "Path to config file for ignore rules and advanced settings"
+    required: false
+    default: ".github/own-your-review-config.yml"
+  model:
+    description: "Override the Claude model (defaults to claude-sonnet-4-5-20250929)"
+    required: false
+    default: ""
+  language:
+    description: "Language for generated comments (ISO 639-1, e.g. 'en', 'ja')"
+    required: false
+    default: "en"
+
+runs:
+  using: "composite"
+  steps:
+    # ── Step 1: Load config file ──────────────────────────────────────
+    - name: Load config
+      id: config
+      shell: bash
+      run: |
+        CONFIG_FILE="${{ inputs.config_path }}"
+        if [ -f "$CONFIG_FILE" ]; then
+          echo "config_exists=true" >> $GITHUB_OUTPUT
+
+          # Extract settings — config file overrides action inputs
+          FILE_MAX=$(yq '.questions.max // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+          FILE_MIN=$(yq '.questions.min // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+          FILE_LEVEL=$(yq '.questions.reviewer_level // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+
+          IGNORE_PATHS=$(yq '.ignore.paths // [] | join(",")' "$CONFIG_FILE" 2>/dev/null || echo "")
+          IGNORE_AUTHORS=$(yq '.ignore.authors // [] | join(",")' "$CONFIG_FILE" 2>/dev/null || echo "")
+          IGNORE_LABELS=$(yq '.ignore.labels // [] | join(",")' "$CONFIG_FILE" 2>/dev/null || echo "review:skip")
+
+          FILE_LEARNING_NOTE=$(yq '.on_unanswered.learning_note // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+          FILE_LANGUAGE=$(yq '.language // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+
+          echo "max_questions=${FILE_MAX:-${{ inputs.max_questions }}}" >> $GITHUB_OUTPUT
+          echo "min_questions=${FILE_MIN:-${{ inputs.min_questions }}}" >> $GITHUB_OUTPUT
+          echo "reviewer_level=${FILE_LEVEL:-${{ inputs.reviewer_level }}}" >> $GITHUB_OUTPUT
+          echo "ignore_paths=$IGNORE_PATHS" >> $GITHUB_OUTPUT
+          echo "ignore_authors=$IGNORE_AUTHORS" >> $GITHUB_OUTPUT
+          echo "ignore_labels=$IGNORE_LABELS" >> $GITHUB_OUTPUT
+          echo "learning_note=${FILE_LEARNING_NOTE:-${{ inputs.learning_note }}}" >> $GITHUB_OUTPUT
+          echo "language=${FILE_LANGUAGE:-${{ inputs.language }}}" >> $GITHUB_OUTPUT
+        else
+          echo "config_exists=false" >> $GITHUB_OUTPUT
+          echo "max_questions=${{ inputs.max_questions }}" >> $GITHUB_OUTPUT
+          echo "min_questions=${{ inputs.min_questions }}" >> $GITHUB_OUTPUT
+          echo "reviewer_level=${{ inputs.reviewer_level }}" >> $GITHUB_OUTPUT
+          echo "ignore_paths=" >> $GITHUB_OUTPUT
+          echo "ignore_authors=dependabot[bot],renovate[bot]" >> $GITHUB_OUTPUT
+          echo "ignore_labels=review:skip" >> $GITHUB_OUTPUT
+          echo "learning_note=${{ inputs.learning_note }}" >> $GITHUB_OUTPUT
+          echo "language=${{ inputs.language }}" >> $GITHUB_OUTPUT
+        fi
+
+    # ── Step 2: Check skip conditions ─────────────────────────────────
+    - name: Check skip conditions
+      id: skip
+      shell: bash
+      run: |
+        # Default: don't skip
+        SKIP="false"
+        REASON=""
+
+        # For pull_request_review events, only proceed on approvals
+        if [ "${{ github.event_name }}" = "pull_request_review" ]; then
+          if [ "${{ github.event.review.state }}" != "approved" ]; then
+            SKIP="true"
+            REASON="Not an approval review"
+          fi
+        fi
+
+        # Check draft PRs
+        if [ "${{ github.event.pull_request.draft }}" = "true" ]; then
+          SKIP="true"
+          REASON="Draft PR"
+        fi
+
+        # Check ignored authors
+        AUTHOR="${{ github.event.pull_request.user.login }}"
+        IGNORE_AUTHORS="${{ steps.config.outputs.ignore_authors }}"
+        if [ -n "$IGNORE_AUTHORS" ]; then
+          IFS=',' read -ra AUTHORS <<< "$IGNORE_AUTHORS"
+          for IGNORED in "${AUTHORS[@]}"; do
+            IGNORED=$(echo "$IGNORED" | xargs)  # trim whitespace
+            if [ "$AUTHOR" = "$IGNORED" ]; then
+              SKIP="true"
+              REASON="Author '$AUTHOR' in ignore list"
+              break
+            fi
+          done
+        fi
+
+        # Check ignored labels
+        PR_LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+        IGNORE_LABELS="${{ steps.config.outputs.ignore_labels }}"
+        if [ -n "$IGNORE_LABELS" ] && [ -n "$PR_LABELS" ]; then
+          IFS=',' read -ra LABELS <<< "$IGNORE_LABELS"
+          for IGNORED_LABEL in "${LABELS[@]}"; do
+            IGNORED_LABEL=$(echo "$IGNORED_LABEL" | xargs)
+            if echo ",$PR_LABELS," | grep -q ",$IGNORED_LABEL,"; then
+              SKIP="true"
+              REASON="Label '$IGNORED_LABEL' in ignore list"
+              break
+            fi
+          done
+        fi
+
+        echo "skip=$SKIP" >> $GITHUB_OUTPUT
+        echo "reason=$REASON" >> $GITHUB_OUTPUT
+
+        if [ "$SKIP" = "true" ]; then
+          echo "::notice::own-your-review skipped: $REASON"
+        fi
+
+    # ── Step 3: Template generate-questions prompt ────────────────────
+    - name: Prepare generate-questions prompt
+      if: |
+        steps.skip.outputs.skip == 'false' &&
+        github.event_name == 'pull_request'
+      shell: bash
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        BASE_REF: ${{ github.event.pull_request.base.ref }}
+        HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        MIN_QUESTIONS: ${{ steps.config.outputs.min_questions }}
+        MAX_QUESTIONS: ${{ steps.config.outputs.max_questions }}
+        REVIEWER_LEVEL: ${{ steps.config.outputs.reviewer_level }}
+        IGNORE_PATHS: ${{ steps.config.outputs.ignore_paths }}
+        LANGUAGE: ${{ steps.config.outputs.language }}
+      run: |
+        # Build the ignore paths filter for git diff
+        IGNORE_PATHS_FILTER=""
+        if [ -n "$IGNORE_PATHS" ]; then
+          IFS=',' read -ra PATHS <<< "$IGNORE_PATHS"
+          for P in "${PATHS[@]}"; do
+            P=$(echo "$P" | xargs)
+            IGNORE_PATHS_FILTER="$IGNORE_PATHS_FILTER ':!$P'"
+          done
+        fi
+        export IGNORE_PATHS_FILTER
+
+        envsubst '$PR_NUMBER $BASE_REF $HEAD_REF $MIN_QUESTIONS $MAX_QUESTIONS $REVIEWER_LEVEL $IGNORE_PATHS_FILTER $LANGUAGE' \
+          < "${{ github.action_path }}/prompts/generate-questions.md" > /tmp/oyr-generate-prompt.md
+
+    # ── Step 4: Generate comprehension questions ──────────────────────
+    - name: Generate comprehension questions
+      if: |
+        steps.skip.outputs.skip == 'false' &&
+        github.event_name == 'pull_request'
+      uses: anthropics/claude-code-action@v1
+      with:
+        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        use_bedrock: ${{ inputs.use_bedrock }}
+        use_vertex: ${{ inputs.use_vertex }}
+        model: ${{ inputs.model || 'claude-sonnet-4-5-20250929' }}
+        prompt_file: /tmp/oyr-generate-prompt.md
+        allowed_tools: "Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(wc:*),Bash(cat:*),Bash(head:*),Bash(tail:*),View,GlobTool"
+
+    # ── Step 5: Template check-comprehension prompt ───────────────────
+    - name: Prepare check-comprehension prompt
+      if: |
+        steps.skip.outputs.skip == 'false' &&
+        github.event_name == 'pull_request_review' &&
+        github.event.review.state == 'approved' &&
+        steps.config.outputs.learning_note == 'true'
+      shell: bash
+      env:
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        BASE_REF: ${{ github.event.pull_request.base.ref }}
+        HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        LANGUAGE: ${{ steps.config.outputs.language }}
+      run: |
+        envsubst '$PR_NUMBER $BASE_REF $HEAD_REF $LANGUAGE' \
+          < "${{ github.action_path }}/prompts/check-comprehension.md" > /tmp/oyr-check-prompt.md
+
+    # ── Step 6: Check comprehension on approval ───────────────────────
+    - name: Check comprehension
+      if: |
+        steps.skip.outputs.skip == 'false' &&
+        github.event_name == 'pull_request_review' &&
+        github.event.review.state == 'approved' &&
+        steps.config.outputs.learning_note == 'true'
+      uses: anthropics/claude-code-action@v1
+      with:
+        anthropic_api_key: ${{ inputs.anthropic_api_key }}
+        claude_code_oauth_token: ${{ inputs.claude_code_oauth_token }}
+        use_bedrock: ${{ inputs.use_bedrock }}
+        use_vertex: ${{ inputs.use_vertex }}
+        model: ${{ inputs.model || 'claude-sonnet-4-5-20250929' }}
+        prompt_file: /tmp/oyr-check-prompt.md
+        allowed_tools: "Bash(gh:*),View"

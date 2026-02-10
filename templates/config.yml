@@ -1,0 +1,27 @@
+# own-your-review configuration
+# See: https://github.com/lymo-inc/own-your-review
+
+# Language for generated comments (ISO 639-1)
+# Supported: any language Claude speaks (en, ja, es, fr, ko, zh, etc.)
+language: en
+
+# Question generation
+questions:
+  max: 5                    # Maximum questions per PR (1-7)
+  min: 2                    # Minimum questions, even for small PRs
+  reviewer_level: mid       # junior | mid | senior — adjusts difficulty and hints
+
+# What to ignore
+ignore:
+  paths:
+    - "*.lock"
+    - "*.generated.*"
+    - "migrations/"
+    - "*.snap"
+  authors:
+    - "dependabot[bot]"
+    - "renovate[bot]"
+
+# Behavior on unanswered questions
+on_unanswered:
+  learning_note: true       # Post a learning note if approved without engaging
