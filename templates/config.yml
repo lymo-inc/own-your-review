@@ -23,6 +23,19 @@ ignore:
     - "dependabot[bot]"
     - "renovate[bot]"
 
+# Pin destinations — where to save insights captured during quizzes
+pins:
+  destination: markdown     # markdown | github | linear
+  file: .github/review-pins.md  # Path for markdown destination
+  github:
+    labels:
+      - "review-insight"
+      - "own-your-review"
+  linear:
+    team: ""                # Linear team name or ID (required for linear destination)
+    labels:
+      - "review-insight"
+
 # Behavior on unanswered questions
 on_unanswered:
   learning_note: true       # Post a learning note if approved without engaging
