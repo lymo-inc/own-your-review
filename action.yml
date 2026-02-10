@@ -1,5 +1,5 @@
 name: "Own Your Review"
-description: "Generates comprehension questions on PRs to verify reviewers actually understood the code before approving. Stop vibe-merging. Start understanding."
+description: "Comprehension questions on PRs to verify reviewers understood the code. Stop vibe-merging."
 branding:
   icon: "check-circle"
   color: "yellow"
