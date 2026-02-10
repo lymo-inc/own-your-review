@@ -11,7 +11,6 @@ const TEMPLATES_DIR = join(dirname(import.meta.filename), "../templates");
 
 const WORKFLOW_TARGET = ".github/workflows/own-your-review.yml";
 const CONFIG_TARGET = ".github/own-your-review-config.yml";
-const SKILL_TARGET = ".claude/skills/own-your-review.md";
 
 async function confirm(question: string): Promise<boolean> {
 	if (process.env.CI) return true;
@@ -37,7 +36,6 @@ function isGitRepo(): boolean {
 async function init(options: {
 	force?: boolean;
 	skipConfig?: boolean;
-	skipSkill?: boolean;
 }) {
 	console.log();
 	console.log("own-your-review — Stop vibe-merging. Start understanding.");
@@ -90,26 +88,7 @@ async function init(options: {
 		}
 	}
 
-	// 4. Write Claude Code skill file
-	if (!options.skipSkill) {
-		if (existsSync(SKILL_TARGET) && !options.force) {
-			ora().info(`${SKILL_TARGET} already exists — skipping`);
-		} else if (existsSync(SKILL_TARGET)) {
-			copyFileSync(join(TEMPLATES_DIR, "skill.md"), SKILL_TARGET);
-			ora().succeed(`Updated ${SKILL_TARGET}`);
-		} else {
-			const createSkill =
-				options.force ||
-				(await confirm("Install Claude Code skill for local review?"));
-			if (createSkill) {
-				mkdirSync(".claude/skills", { recursive: true });
-				copyFileSync(join(TEMPLATES_DIR, "skill.md"), SKILL_TARGET);
-				ora().succeed(`Created ${SKILL_TARGET}`);
-			}
-		}
-	}
-
-	// 5. Next steps
+	// 4. Next steps
 	console.log();
 	console.log("Done! Next steps:");
 	console.log();
@@ -130,7 +109,7 @@ async function init(options: {
 		"  4. For interactive quizzes in Claude Code, install the plugin:",
 	);
 	console.log(
-		"     https://github.com/lymo-inc/own-your-review#claude-code-plugin",
+		"     claude install-plugin own-your-review",
 	);
 	console.log("     Then run: /own-your-review:quiz-me");
 	console.log();
@@ -148,7 +127,6 @@ program
 	.description("Initialize own-your-review in the current directory")
 	.option("--force", "Overwrite existing files without prompting")
 	.option("--skip-config", "Don't create the config file")
-	.option("--skip-skill", "Don't install the Claude Code skill")
 	.action(init);
 
 program.parse();

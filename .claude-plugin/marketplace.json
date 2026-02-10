@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Stop merging things you don't understand. Verify comprehension.",
-    "version": "0.2.1"
+    "version": "0.2.2"
   },
   "plugins": [
     {

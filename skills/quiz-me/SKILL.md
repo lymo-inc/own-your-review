@@ -22,32 +22,72 @@ If the config file exists but cannot be parsed, log a warning and proceed with d
 
 ### 1.2 Determine what to quiz on
 
-Parse the user's arguments (everything after `/own-your-review:quiz-me`):
+**Base branch detection (always do this first):** Run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null` to find the default branch name (extract just the branch name, e.g. `main`, `develop`). Fall back to `main` if the command fails.
+
+#### 1.2a If arguments were provided
+
+Parse the user's arguments (everything after `/own-your-review:quiz-me`) as shortcuts:
 
 | Argument | Behavior |
 |----------|----------|
-| *(none)* | Auto-detect current branch diff vs base branch |
 | `path/to/file.ts` | Diff for only that file against base branch |
 | `abc123..def456` | Diff for that commit range |
 | `--staged` | Diff of currently staged changes only |
 
-**Base branch detection:** Run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null` to find the default branch. Fall back to `main`.
+Skip the interactive picker and proceed directly to getting the diff.
 
-**Get the diff:**
-- Default: `git diff <base>...HEAD` with ignore paths excluded (e.g. `-- . ':!*.lock' ':!*.generated.*'`)
-- File target: `git diff <base>...HEAD -- <path>`
-- Commit range: `git diff <range>`
-- Staged: `git diff --staged` with ignore paths excluded
+#### 1.2b If no arguments — interactive picker
+
+Use the **AskUserQuestion** tool to ask the user what changes to quiz on. Present a single question with these options:
+
+- **Question:** `"What changes should I quiz you on?"`
+- **Header:** `"Diff scope"`
+- **Options (in this order):**
+
+| Label | Description |
+|-------|-------------|
+| `Branch diff vs \`<base>\` (Recommended)` | `Full diff of your current branch against <base>` |
+| `Uncommitted changes` | `Working directory changes not yet committed` |
+| `Staged changes only` | `Only changes added to the staging area` |
+| `Recent commits` | `Quiz on the last N commits on this branch` |
+
+Replace `<base>` with the actual detected base branch name (e.g. `main`, `develop`).
+
+**If the user selects "Recent commits"**, ask a follow-up question using AskUserQuestion:
+
+- **Question:** `"How many recent commits should I cover?"`
+- **Header:** `"Commits"`
+- **Options:**
+
+| Label | Description |
+|-------|-------------|
+| `Last commit` | `Only the most recent commit` |
+| `Last 3 commits` | `The 3 most recent commits` |
+| `Last 5 commits` | `The 5 most recent commits` |
+| `Last 10 commits` | `The 10 most recent commits` |
+
+**If the user selects "Other"** for either question, treat their free-text input as arguments (a file path, commit range, or number of commits) and interpret accordingly.
+
+### 1.3 Get the diff
+
+Based on the selection from 1.2a or 1.2b, get the diff:
+
+- **Branch diff:** `git diff <base>...HEAD` with ignore paths excluded (e.g. `-- . ':!*.lock' ':!*.generated.*'`)
+- **Uncommitted changes:** `git diff` with ignore paths excluded
+- **Staged only:** `git diff --staged` with ignore paths excluded
+- **Recent N commits:** `git diff HEAD~N...HEAD` with ignore paths excluded
+- **File target:** `git diff <base>...HEAD -- <path>`
+- **Commit range:** `git diff <range>`
 
 If the diff is empty, tell the user and stop.
 
-### 1.3 Analyze and generate questions internally
+### 1.4 Analyze and generate questions internally
 
 Analyze the diff and generate questions using the taxonomy and scaling rules below. **Keep all questions and their expected answers in your internal working memory. Do NOT output them yet.**
 
 Count the diff stats (files changed, lines added/removed) for the announcement.
 
-### 1.4 Announce the quiz
+### 1.5 Announce the quiz
 
 Output:
 

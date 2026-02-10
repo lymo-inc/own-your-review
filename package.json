@@ -1,6 +1,6 @@
 {
   "name": "@lymo-inc/own-your-review",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Stop merging things you don't understand.",
   "license": "MIT",
   "repository": {
@@ -26,9 +26,9 @@
   },
   "type": "module",
   "dependencies": {
-    "commander": "^13",
+    "commander": "^14",
     "execa": "^9",
-    "ora": "^8"
+    "ora": "^9"
   },
   "devDependencies": {
     "@types/bun": "latest"
