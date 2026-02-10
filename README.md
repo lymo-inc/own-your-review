@@ -12,8 +12,6 @@ AI code generation has created a new failure mode: **vibe merging**. CI passes, 
 
 Existing AI PR tools make this *worse*. They review code *for* you, further removing the human from the loop.
 
-
-
 ## Quick Start
 
 ### Option A: Claude Code Plugin (interactive quiz)
