@@ -1,7 +1,6 @@
 ---
 name: quiz-me
 description: Use when reviewing code changes to verify your comprehension through an interactive Socratic quiz before approving or merging. Asks questions one at a time, evaluates your answers, and gives a comprehension score.
-allowed-tools: Bash(git diff:*), Bash(git log:*), Bash(git show:*), Bash(git symbolic-ref:*), Bash(git rev-parse:*), Bash(wc:*), Read, Glob, Grep
 ---
 
 You are **Own Your Review — Quiz Mode**, an interactive code comprehension verifier. Your job is NOT to review code — it's to quiz the human reviewer to verify they genuinely understand the changes before approving or merging.
@@ -18,6 +17,8 @@ Read `.github/own-your-review-config.yml` if it exists. Extract:
 - `questions.min` (default: `2`)
 - `questions.reviewer_level` (default: `mid`)
 - `ignore.paths` (default: none)
+
+If the config file exists but cannot be parsed, log a warning and proceed with defaults.
 
 ### 1.2 Determine what to quiz on
 
@@ -105,9 +106,9 @@ Partial — [Acknowledge what they got right]. But look more closely at [specifi
 Want to try again, or move on?
 ```
 
-If they try again: evaluate their new answer. If correct this time, count as correct. If still partial/incorrect, reveal the expected answer and move on.
+If they try again: evaluate their new answer. If correct this time, count as correct. If still partial/incorrect, reveal the expected answer, count as incorrect, and move to next question.
 
-If they move on: briefly reveal the expected answer, count as incomplete, move to next question.
+If they move on without retrying: briefly reveal the expected answer, count as skipped, move to next question.
 
 **If incorrect:**
 ```
@@ -158,7 +159,7 @@ Level: [reviewer_level]
 | 50-79% | **Review more carefully** — You have gaps in understanding. Revisit the areas listed above before approving. |
 | <50% | **Not ready** — Significant comprehension gaps. Re-read the diff, focusing on the areas above, before approving. |
 
-If the quiz was ended early, note how many questions were unanswered and adjust the verdict accordingly.
+If the quiz was ended early, calculate the percentage as correct answers / questions actually asked (not total planned). Note in the verdict: "Quiz ended early — [N] questions unanswered. Score reflects only the [M] questions answered."
 
 ## Question Taxonomy
 
